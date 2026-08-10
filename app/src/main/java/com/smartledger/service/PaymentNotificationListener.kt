@@ -66,7 +66,7 @@ class PaymentNotificationListener : NotificationListenerService() {
             "spdb", "cmbc", "cebbank", "bankcomm", "bocomm", "cib"
         )
 
-        // ═══ 支出关键词 ═══
+        // ═══ 支出关键词（不含「动账」：工行工资等到账通知也会带「动账」字样）═══
         private val EXPENSE_KEYWORDS = listOf(
             "付款", "支付", "消费", "支出", "转出", "扣款", "已付", "成功付款",
             "购买", "缴费", "还款", "充值", "已扣", "交易支出"

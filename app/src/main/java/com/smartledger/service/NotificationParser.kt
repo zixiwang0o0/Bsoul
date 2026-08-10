@@ -28,15 +28,18 @@ private data class AmountHit(
 
 object NotificationParser {
 
-    /** 金额捕获：整数或最多两位小数；兼容通知末尾「35....」截断 */
-    private const val AMOUNT = "([\\d]+(?:\\.[\\d]{1,2})?)"
+    /**
+     * 金额捕获：整数或最多两位小数；兼容千分位逗号（6,064.76）与末尾「35....」截断。
+     * 勿把「动账」单独当作支出词：工行「动账通知…收入(工资)」会误判成支出。
+     */
+    private const val AMOUNT = "([\\d,]+(?:\\.[\\d]{1,2})?)"
 
     // ═══════════════════════════════════════════════════════
     // 支出关键词
     // ═══════════════════════════════════════════════════════
     private val EXPENSE_KEYWORDS = listOf(
         "付款", "支付", "消费", "支出", "转出", "扣款", "已付", "成功付款",
-        "购买", "缴费", "还款", "充值", "已扣", "交易支出", "动账"
+        "购买", "缴费", "还款", "充值", "已扣", "交易支出"
     )
 
     // ═══════════════════════════════════════════════════════
@@ -443,14 +446,15 @@ object NotificationParser {
         // 云闪付 / 电商收银台
         if (Regex("使用【.+?】支付\\s*[\\d.]+").containsMatchIn(text)) return true
         if (Regex("成功支付\\s*[\\d.]+").containsMatchIn(text)) return true
-        // 银行卡动账（含截断无「元」）
-        if (Regex("支出\\([^)]{0,120}\\)\\s*[\\d.]+").containsMatchIn(text)) return true
-        if (Regex("收入\\([^)]{0,120}\\)\\s*[\\d.]+").containsMatchIn(text)) return true
-        if (Regex("消费\\([^)]{0,120}\\)\\s*[\\d.]+").containsMatchIn(text)) return true
-        if (Regex("(?:支出|消费|收入|扣款|存入)人民币\\s*[\\d.]+").containsMatchIn(text)) return true
-        if (text.contains("动账") && Regex("[\\d]+(?:\\.[\\d]{1,2})?").containsMatchIn(text)) return true
-        if (Regex("交易金额\\s*[￥¥]?\\s*[\\d.]+").containsMatchIn(text)) return true
-        if (Regex("(?:转出|转入|到账|扣款)\\s*[￥¥]\\s*[\\d.]+").containsMatchIn(text)) return true
+        // 银行卡动账（含千分位逗号、截断无「元」）
+        if (Regex("支出\\([^)]{0,120}\\)\\s*[\\d,]+").containsMatchIn(text)) return true
+        if (Regex("收入\\([^)]{0,120}\\)\\s*[\\d,]+").containsMatchIn(text)) return true
+        if (Regex("消费\\([^)]{0,120}\\)\\s*[\\d,]+").containsMatchIn(text)) return true
+        if (Regex("(?:支出|消费|收入|扣款|存入)人民币\\s*[\\d,]+").containsMatchIn(text)) return true
+        if (text.contains("动账") && Regex("[\\d,]+(?:\\.[\\d]{1,2})?").containsMatchIn(text)) return true
+        if (Regex("交易金额\\s*[￥¥]?\\s*[\\d,]+").containsMatchIn(text)) return true
+        if (Regex("(?:转出|转入|到账|扣款)\\s*[￥¥]\\s*[\\d,]+").containsMatchIn(text)) return true
+        if (Regex("网上银行收入\\([^)]*\\)\\s*[\\d,]+").containsMatchIn(text)) return true
         return false
     }
 
@@ -564,9 +568,12 @@ object NotificationParser {
             .replace(Regex("【([^】]*?)[(（]\\d{4}[)）]】"), "【$1】")
     }
 
-    /** 从捕获组清洗金额：去掉「35....」尾随点号 */
+    /** 从捕获组清洗金额：去掉千分位逗号、以及「35....」尾随点号 */
     private fun parseAmountToken(raw: String): Double? {
-        val cleaned = raw.trim().trimEnd('.', '…', '。', ' ')
+        val cleaned = raw.trim()
+            .replace(",", "")
+            .replace("，", "")
+            .trimEnd('.', '…', '。', ' ')
         val m = Regex("^(\\d{1,9})(\\.\\d{1,2})?").find(cleaned) ?: return null
         val value = m.value.toDoubleOrNull() ?: return null
         if (value <= 0 || value >= 10_000_000) return null
@@ -734,17 +741,28 @@ object NotificationParser {
             type = "expense"
             amountPatterns = getExpensePatterns(paymentMethod, packageName)
         } else if (isIncome && isExpense) {
-            // 两者都有：能落到明确退款/支付语义则不算模糊
-            if (rawText.contains("退款") || rawText.contains("退回") ||
-                (rawText.contains("到账") && !rawText.contains("提现"))
-            ) {
-                type = "income"
-                amountPatterns = getIncomePatterns(paymentMethod, packageName)
-                typeAmbiguous = !hasStrongPaymentSignal(rawText) && !hasBankLedgerSignal(rawText)
-            } else {
-                type = "expense"
-                amountPatterns = getExpensePatterns(paymentMethod, packageName)
-                typeAmbiguous = !hasStrongPaymentSignal(rawText) && !hasBankLedgerSignal(rawText)
+            // 两者都有：优先看结构「收入(…) / 支出(…) / 工资」，避免动账类文案误判
+            when {
+                rawText.contains("收入(") || rawText.contains("网上银行收入") ||
+                    rawText.contains("工资") || rawText.contains("存入") ||
+                    rawText.contains("退款") || rawText.contains("退回") ||
+                    (rawText.contains("到账") && !rawText.contains("提现") &&
+                        !rawText.contains("支出(") && !rawText.contains("消费(")) -> {
+                    type = "income"
+                    amountPatterns = getIncomePatterns(paymentMethod, packageName)
+                    typeAmbiguous = false
+                }
+                rawText.contains("支出(") || rawText.contains("消费(") ||
+                    rawText.contains("扣款") || rawText.contains("转出") -> {
+                    type = "expense"
+                    amountPatterns = getExpensePatterns(paymentMethod, packageName)
+                    typeAmbiguous = false
+                }
+                else -> {
+                    type = "expense"
+                    amountPatterns = getExpensePatterns(paymentMethod, packageName)
+                    typeAmbiguous = !hasStrongPaymentSignal(rawText) && !hasBankLedgerSignal(rawText)
+                }
             }
         } else {
             // 银行无关键词时：仅动账截断场景可继续；禁止裸「xx元」兜底
