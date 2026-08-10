@@ -10,7 +10,6 @@ import androidx.work.WorkerParameters
 import com.smartledger.service.KeepAliveService
 import com.smartledger.service.ListenerStatus
 import java.util.concurrent.TimeUnit
-// ListenerWatchdog in same package
 
 /**
  * 定时巡检通知监听（约每 15 分钟）：
