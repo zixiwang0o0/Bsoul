@@ -8,6 +8,7 @@ import com.smartledger.data.repository.TransactionRepository
 import com.smartledger.service.ListenerStatus
 import com.smartledger.service.SmartCategorizer
 import com.smartledger.util.ListenerRebindScheduler
+import com.smartledger.util.ListenerWatchdog
 import com.smartledger.util.NotificationStyle
 
 class SmartLedgerApp : Application() {
@@ -35,9 +36,10 @@ class SmartLedgerApp : Application() {
         SmartCategorizer.init(this)
         NotificationStyle.ensureChannels(this)
         ListenerRebindScheduler.schedule(this)
+        ListenerWatchdog.schedule(this)
         if (ListenerStatus.isEnabledInSettings(this)) {
             com.smartledger.service.KeepAliveService.start(this)
-            ListenerStatus.requestRebind(this, force = true)
+            ListenerStatus.ensureListening(this)
         }
     }
 }

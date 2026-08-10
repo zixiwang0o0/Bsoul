@@ -29,6 +29,7 @@ object ListenerStatus {
     private const val KEY_EVER_ENABLED = "nls_ever_enabled"
     private const val KEY_PENDING_IN_APP_PROMPT = "nls_pending_in_app_prompt"
     private const val KEY_LAST_FORCE_RECONNECT = "nls_last_force_reconnect"
+    private const val KEY_LAST_ALIVE_AT = "nls_last_alive_at"
 
     /** 设置里已关闭 */
     const val PROMPT_DISABLED = "disabled"
@@ -71,6 +72,7 @@ object ListenerStatus {
         val editor = prefs.edit().putBoolean(KEY_CONNECTED, connected)
         if (connected) {
             editor.putBoolean(KEY_EVER_ENABLED, true)
+            editor.putLong(KEY_LAST_ALIVE_AT, System.currentTimeMillis())
         }
         editor.apply()
         Log.d(TAG, "connected=$connected")
@@ -81,7 +83,7 @@ object ListenerStatus {
     }
 
     /**
-     * 收到任意支付相关通知即证明 binder 已通，用于自愈「假断开」文案。
+     * 收到任意通知即证明 binder 已通，用于自愈「假断开」文案。
      */
     fun markAliveFromNotification(context: Context) {
         if (!binderConnected.get()) {
@@ -89,6 +91,29 @@ object ListenerStatus {
         }
         setConnected(context, true)
         clearPendingInAppPrompt(context)
+        try {
+            com.smartledger.util.NotificationStyle.cancelListenerDown(context)
+        } catch (_: Exception) {
+        }
+    }
+
+    fun lastAliveAt(context: Context): Long {
+        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getLong(KEY_LAST_ALIVE_AT, 0L)
+    }
+
+    /**
+     * 权限已开时确保监听在跑：先 requestRebind；
+     * 若长时间无 binder 回调，由 KeepAlive 升级为 forceReconnect。
+     */
+    fun ensureListening(context: Context) {
+        if (!isEnabledInSettings(context)) return
+        try {
+            KeepAliveService.start(context)
+        } catch (_: Exception) {
+        }
+        if (isBinderConnected()) return
+        requestRebind(context, force = true)
     }
 
     fun markEverEnabled(context: Context) {
@@ -192,7 +217,11 @@ object ListenerStatus {
      * 强恢复：仅作最后手段，且全局限流（默认 30 分钟最多一次）。
      * 频繁 toggle 组件会在部分机型上导致监听永久失效。
      */
-    fun forceReconnect(context: Context, bypassCooldown: Boolean = false): Boolean {
+    fun forceReconnect(
+        context: Context,
+        bypassCooldown: Boolean = false,
+        cooldownMs: Long = 30 * 60 * 1000L
+    ): Boolean {
         if (!isEnabledInSettings(context)) {
             setConnected(context, false)
             return false
@@ -200,8 +229,8 @@ object ListenerStatus {
         val now = System.currentTimeMillis()
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val last = maxOf(lastForceAt.get(), prefs.getLong(KEY_LAST_FORCE_RECONNECT, 0L))
-        if (!bypassCooldown && now - last < 30 * 60 * 1000L) {
-            Log.d(TAG, "forceReconnect skipped (cooldown)")
+        if (!bypassCooldown && now - last < cooldownMs) {
+            Log.d(TAG, "forceReconnect skipped (cooldown ${cooldownMs / 1000}s)")
             return false
         }
         return try {

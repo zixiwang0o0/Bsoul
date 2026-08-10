@@ -21,11 +21,13 @@ object NotificationStyle {
     const val CHANNEL_PAYMENT = "payment_detected"
     const val CHANNEL_KEEP_ALIVE = "keep_alive"
     const val CHANNEL_FLOATING = "floating_window_channel"
+    const val CHANNEL_LISTENER_ALERT = "listener_alert"
 
     private const val ID_PAYMENT_BASE = 2001
     private const val ID_CONFIRM_BASE = 3001
     const val ID_KEEP_ALIVE = 1002
     const val ID_FLOATING = 1001
+    const val ID_LISTENER_DOWN = 1003
     const val CHANNEL_CONFIRM = "payment_confirm"
 
     fun ensureChannels(context: Context) {
@@ -77,6 +79,18 @@ object NotificationStyle {
             ).apply {
                 description = "支付确认相关前台服务"
                 setShowBadge(false)
+            }
+        )
+
+        manager.createNotificationChannel(
+            NotificationChannel(
+                CHANNEL_LISTENER_ALERT,
+                "监听异常提醒",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "支付监听长时间未连上时提醒"
+                enableVibration(true)
+                setShowBadge(true)
             }
         )
     }
@@ -263,5 +277,27 @@ object NotificationStyle {
             .setSilent(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
+    }
+
+    /** 监听长时间未连上：可点进 App 触发重连 */
+    fun notifyListenerDown(context: Context) {
+        ensureChannels(context)
+        val manager = context.getSystemService(NotificationManager::class.java) ?: return
+        val notification = NotificationCompat.Builder(context, CHANNEL_LISTENER_ALERT)
+            .setSmallIcon(R.drawable.ic_stat_notification)
+            .setColor(accentColor(context))
+            .setContentTitle("支付监听未连接")
+            .setContentText("点按打开智能记账以恢复自动记账")
+            .setContentIntent(openAppPendingIntent(context, ID_LISTENER_DOWN))
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_ERROR)
+            .build()
+        manager.notify(ID_LISTENER_DOWN, notification)
+    }
+
+    fun cancelListenerDown(context: Context) {
+        val manager = context.getSystemService(NotificationManager::class.java) ?: return
+        manager.cancel(ID_LISTENER_DOWN)
     }
 }

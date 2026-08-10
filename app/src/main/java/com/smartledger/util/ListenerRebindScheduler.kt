@@ -10,6 +10,7 @@ import androidx.work.WorkerParameters
 import com.smartledger.service.KeepAliveService
 import com.smartledger.service.ListenerStatus
 import java.util.concurrent.TimeUnit
+// ListenerWatchdog in same package
 
 /**
  * 定时巡检通知监听（约每 15 分钟）：
@@ -51,11 +52,20 @@ class ListenerRebindWorker(
 
             if (ListenerStatus.isEnabledInSettings(ctx)) {
                 KeepAliveService.start(ctx)
+                ListenerStatus.ensureListening(ctx)
+                // binder 仍未就绪时，允许按卡住冷却做一次强恢复
+                if (!ListenerStatus.isBinderConnected()) {
+                    ListenerStatus.forceReconnect(
+                        ctx,
+                        bypassCooldown = false,
+                        cooldownMs = 12 * 60 * 1000L
+                    )
+                }
             }
 
-            // 检测失效：优先 requestRebind；不强行反复 toggle 组件
             val invalid = ListenerStatus.checkAndRecoverIfNeeded(ctx)
             KeepAliveService.refreshNotification(ctx)
+            ListenerWatchdog.schedule(ctx)
             Log.d("ListenerRebind", "permission check done, invalid=$invalid")
             Result.success()
         } catch (e: Exception) {

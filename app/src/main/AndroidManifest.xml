@@ -82,7 +82,19 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
-        <!-- 开机自启广播：系统广播要求 exported=true -->
+        <!-- 开机 / 解锁 / 定时狗：拉起保活并重绑监听（不依赖用户打开 App） -->
+        <receiver
+            android:name=".util.ListenerWakeReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+                <action android:name="android.intent.action.USER_PRESENT" />
+                <action android:name="com.smartledger.action.NLS_WATCHDOG" />
+            </intent-filter>
+        </receiver>
+
+        <!-- 兼容旧开机广播组件名 -->
         <receiver
             android:name=".service.BootReceiver"
             android:exported="true"
