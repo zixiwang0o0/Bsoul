@@ -367,10 +367,25 @@ class PaymentNotificationListener : NotificationListenerService() {
             return
         }
 
+        // 分类先算好再一次性 insert，避免 insert+update 触发首页两次全量刷新卡顿
+        var categoryId: Long? = null
+        try {
+            val categories = db.categoryDao().getAllOnce()
+            categoryId = SmartCategorizer.categorize(
+                merchant = parsed.merchant,
+                paymentMethod = parsed.paymentMethod,
+                note = null,
+                categories = categories,
+                type = parsed.type
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Auto categorize failed", e)
+        }
+
         val transaction = Transaction(
             amount = parsed.amount,
             type = parsed.type,
-            categoryId = null,
+            categoryId = categoryId,
             merchant = parsed.merchant,
             paymentMethod = parsed.paymentMethod,
             note = null,
@@ -380,25 +395,6 @@ class PaymentNotificationListener : NotificationListenerService() {
         )
         val id = db.transactionDao().insert(transaction)
         Log.d(TAG, "Transaction saved: id=$id, type=${parsed.type}")
-
-        try {
-            val categories = db.categoryDao().getAllOnce()
-            val categoryId = SmartCategorizer.categorize(
-                merchant = parsed.merchant,
-                paymentMethod = parsed.paymentMethod,
-                note = null,
-                categories = categories,
-                type = parsed.type
-            )
-            if (categoryId != null) {
-                val savedTransaction = db.transactionDao().getById(id)
-                if (savedTransaction != null) {
-                    db.transactionDao().update(savedTransaction.copy(categoryId = categoryId))
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Auto categorize failed", e)
-        }
 
         com.smartledger.util.NotificationStyle.notifyPaymentDetected(
             applicationContext,

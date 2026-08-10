@@ -147,38 +147,34 @@ class SmsReceiver : BroadcastReceiver() {
                 return
             }
 
-            val transaction = Transaction(
-                amount = amount,
-                type = type,
-                categoryId = null,
-                merchant = merchant,
-                paymentMethod = bankName,
-                note = null,
-                source = "sms",
-                notificationKey = null,
-                transactionTime = now
-            )
-            val id = db.transactionDao().insert(transaction)
-            Log.d(TAG, "SMS transaction saved: id=$id")
-
+            var categoryId: Long? = null
             try {
                 val categories = db.categoryDao().getAllOnce()
-                val categoryId = SmartCategorizer.categorize(
+                categoryId = SmartCategorizer.categorize(
                     merchant = merchant,
                     paymentMethod = bankName,
                     note = null,
                     categories = categories,
                     type = type
                 )
-                if (categoryId != null) {
-                    val saved = db.transactionDao().getById(id)
-                    if (saved != null) {
-                        db.transactionDao().update(saved.copy(categoryId = categoryId))
-                    }
-                }
             } catch (e: Exception) {
                 Log.e(TAG, "SMS categorize failed", e)
             }
+
+            val id = db.transactionDao().insert(
+                Transaction(
+                    amount = amount,
+                    type = type,
+                    categoryId = categoryId,
+                    merchant = merchant,
+                    paymentMethod = bankName,
+                    note = null,
+                    source = "sms",
+                    notificationKey = null,
+                    transactionTime = now
+                )
+            )
+            Log.d(TAG, "SMS transaction saved: id=$id")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to save SMS transaction", e)
         }

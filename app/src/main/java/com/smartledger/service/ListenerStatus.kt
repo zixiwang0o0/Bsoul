@@ -67,14 +67,19 @@ object ListenerStatus {
     }
 
     fun setConnected(context: Context, connected: Boolean) {
-        binderConnected.set(connected)
+        val was = binderConnected.getAndSet(connected)
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        val editor = prefs.edit().putBoolean(KEY_CONNECTED, connected)
         if (connected) {
-            editor.putBoolean(KEY_EVER_ENABLED, true)
-            editor.putLong(KEY_LAST_ALIVE_AT, System.currentTimeMillis())
+            prefs.edit()
+                .putBoolean(KEY_CONNECTED, true)
+                .putBoolean(KEY_EVER_ENABLED, true)
+                .putLong(KEY_LAST_ALIVE_AT, System.currentTimeMillis())
+                .apply()
+        } else {
+            prefs.edit().putBoolean(KEY_CONNECTED, false).apply()
         }
-        editor.apply()
+        // 状态未变时不刷新保活通知，避免每条系统通知都打一次 NotificationManager
+        if (was == connected) return
         Log.d(TAG, "connected=$connected")
         try {
             KeepAliveService.refreshNotification(context)

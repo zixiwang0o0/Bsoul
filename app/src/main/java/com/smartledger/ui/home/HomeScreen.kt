@@ -45,19 +45,22 @@ fun HomeScreen(
     onExport: () -> Unit = {},
     viewModel: HomeViewModel = viewModel()
 ) {
-    val todayExpense by viewModel.todayExpense.collectAsState(initial = 0.0)
-    val monthExpense by viewModel.monthExpense.collectAsState(initial = 0.0)
-    val monthIncome by viewModel.monthIncome.collectAsState(initial = 0.0)
+    val todayExpense by viewModel.todayExpense.collectAsState()
+    val monthExpense by viewModel.monthExpense.collectAsState()
+    val monthIncome by viewModel.monthIncome.collectAsState()
     val totalBalance by viewModel.totalBalance.collectAsState()
     val initialBalance by viewModel.initialBalance.collectAsState()
-    val totalIncome by viewModel.totalIncome.collectAsState(initial = 0.0)
-    val totalExpense by viewModel.totalExpense.collectAsState(initial = 0.0)
-    val recentTransactions by viewModel.recentTransactions.collectAsState(initial = emptyList())
-    val categories by viewModel.categories.collectAsState(initial = emptyList())
+    val totalIncome by viewModel.totalIncome.collectAsState()
+    val totalExpense by viewModel.totalExpense.collectAsState()
+    val recentTransactions by viewModel.recentTransactions.collectAsState()
+    val categories by viewModel.categories.collectAsState()
     val selectedYearMonth by viewModel.selectedYearMonth.collectAsState()
     val isCurrentMonth = selectedYearMonth == DateUtil.getCurrentYearMonth()
     val context = LocalContext.current
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    val groupedTransactions = remember(recentTransactions) {
+        recentTransactions.groupBy { DateUtil.formatDate(it.transactionTime) }
+    }
 
     // 回到前台时刷新今日/本月区间（跨日不重启进程也能更新）
     DisposableEffect(lifecycleOwner) {
@@ -182,11 +185,8 @@ fun HomeScreen(
                     EmptyStateCard()
                 }
             } else {
-                val grouped = recentTransactions.groupBy {
-                    DateUtil.formatDate(it.transactionTime)
-                }
-                grouped.forEach { (date, transactions) ->
-                    item {
+                groupedTransactions.forEach { (date, transactions) ->
+                    item(key = "date-$date") {
                         Text(
                             text = date,
                             style = MaterialTheme.typography.labelMedium,
@@ -194,7 +194,7 @@ fun HomeScreen(
                             modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
                         )
                     }
-                    items(transactions) { transaction ->
+                    items(transactions, key = { it.id }) { transaction ->
                         TransactionItem(
                             transaction = transaction,
                             categoryName = viewModel.getCategoryName(transaction.categoryId, categories),

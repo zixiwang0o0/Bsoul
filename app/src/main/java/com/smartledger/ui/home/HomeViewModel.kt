@@ -10,22 +10,26 @@ import com.smartledger.data.db.entity.Transaction
 import com.smartledger.service.SmartCategorizer
 import com.smartledger.util.DateUtil
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     companion object {
         private const val PREFS = "smart_ledger"
         private const val KEY_INITIAL_BALANCE = "initial_balance"
+        /** 合并短时间多次 Room 失效，减轻记账后首页卡顿 */
+        private const val UI_DEBOUNCE_MS = 120L
     }
 
     private val repo = (application as SmartLedgerApp).transactionRepository
@@ -44,39 +48,63 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _initialBalance = MutableStateFlow(loadInitialBalance())
     val initialBalance: StateFlow<Double> = _initialBalance.asStateFlow()
 
-    val totalIncome: Flow<Double> = repo.getTotalIncomeSum()
-    val totalExpense: Flow<Double> = repo.getTotalExpenseSum()
+    private val totalIncomeFlow = repo.getTotalIncomeSum()
+        .debounce(UI_DEBOUNCE_MS)
+        .distinctUntilChanged()
+
+    private val totalExpenseFlow = repo.getTotalExpenseSum()
+        .debounce(UI_DEBOUNCE_MS)
+        .distinctUntilChanged()
+
+    val totalIncome: StateFlow<Double> = totalIncomeFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0.0)
+
+    val totalExpense: StateFlow<Double> = totalExpenseFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0.0)
 
     /** 当前总余额（存了多少钱） */
     val totalBalance: StateFlow<Double> = combine(
         _initialBalance,
-        totalIncome,
-        totalExpense
+        totalIncomeFlow,
+        totalExpenseFlow
     ) { initial, income, expense ->
         initial + income - expense
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), _initialBalance.value)
 
-    val todayExpense: Flow<Double> = dateTick.flatMapLatest {
+    val todayExpense: StateFlow<Double> = dateTick.flatMapLatest {
         repo.getExpenseSum(DateUtil.getTodayStartTime(), DateUtil.getTodayEndTime())
     }
+        .debounce(UI_DEBOUNCE_MS)
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0.0)
 
-    val monthExpense: Flow<Double> = combine(dateTick, _selectedYearMonth) { _, ym -> ym }
+    val monthExpense: StateFlow<Double> = combine(dateTick, _selectedYearMonth) { _, ym -> ym }
         .flatMapLatest { ym ->
             repo.getExpenseSum(DateUtil.getMonthStartTime(ym), DateUtil.getMonthEndTime(ym))
         }
+        .debounce(UI_DEBOUNCE_MS)
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0.0)
 
-    val monthIncome: Flow<Double> = combine(dateTick, _selectedYearMonth) { _, ym -> ym }
+    val monthIncome: StateFlow<Double> = combine(dateTick, _selectedYearMonth) { _, ym -> ym }
         .flatMapLatest { ym ->
             repo.getIncomeSum(DateUtil.getMonthStartTime(ym), DateUtil.getMonthEndTime(ym))
         }
+        .debounce(UI_DEBOUNCE_MS)
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0.0)
 
-    val recentTransactions: Flow<List<Transaction>> =
+    val recentTransactions: StateFlow<List<Transaction>> =
         combine(dateTick, _selectedYearMonth) { _, ym -> ym }
             .flatMapLatest { ym ->
                 repo.getByTimeRange(DateUtil.getMonthStartTime(ym), DateUtil.getMonthEndTime(ym))
             }
+            .debounce(UI_DEBOUNCE_MS)
+            .distinctUntilChanged()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    val categories: Flow<List<Category>> = categoryRepo.getAll()
+    val categories: StateFlow<List<Category>> = categoryRepo.getAll()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun refreshDateRange() {
         dateTick.value = System.currentTimeMillis()

@@ -18,7 +18,8 @@ import com.smartledger.R
  */
 object NotificationStyle {
 
-    const val CHANNEL_PAYMENT = "payment_detected"
+    /** v2：低打扰，避免记账成功时强提示造成卡顿感 */
+    const val CHANNEL_PAYMENT = "payment_detected_v2"
     const val CHANNEL_KEEP_ALIVE = "keep_alive"
     const val CHANNEL_FLOATING = "floating_window_channel"
     const val CHANNEL_LISTENER_ALERT = "listener_alert"
@@ -38,11 +39,12 @@ object NotificationStyle {
             NotificationChannel(
                 CHANNEL_PAYMENT,
                 "收支检测",
-                NotificationManager.IMPORTANCE_DEFAULT
+                NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "自动记账成功后的提醒"
+                description = "自动记账成功后的提醒（低打扰）"
                 enableVibration(false)
-                setShowBadge(true)
+                setShowBadge(false)
+                setSound(null, null)
                 lightColor = ContextCompat.getColor(context, R.color.accent)
             }
         )
@@ -154,8 +156,10 @@ object NotificationStyle {
             )
             .setContentIntent(openAppPendingIntent(context, transactionId.toInt(), transactionId))
             .setAutoCancel(true)
+            .setOnlyAlertOnce(true)
+            .setSilent(true)
             .setCategory(NotificationCompat.CATEGORY_STATUS)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
     }
 
