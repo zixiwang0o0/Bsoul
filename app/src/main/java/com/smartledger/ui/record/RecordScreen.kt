@@ -33,23 +33,53 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RecordScreen(
+    transactionId: Long? = null,
     onSaved: () -> Unit = {},
     viewModel: RecordViewModel = viewModel()
 ) {
-    var transactionType by remember { mutableStateOf("expense") }
-    var amountText by remember { mutableStateOf("0") }
-    var selectedCategory by remember { mutableStateOf<Category?>(null) }
-    var merchant by remember { mutableStateOf("") }
-    var note by remember { mutableStateOf("") }
-    var paymentMethod by remember { mutableStateOf("微信") }
-    var transactionTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    val editingTransaction by produceState<com.smartledger.data.db.entity.Transaction?>(
+        initialValue = null,
+        key1 = transactionId
+    ) {
+        value = transactionId?.let { viewModel.getTransaction(it) }
+    }
+    if (transactionId != null && editingTransaction == null) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(color = SmartLedgerColors.accent)
+        }
+        return
+    }
+
+    var transactionType by remember(editingTransaction?.id) {
+        mutableStateOf(editingTransaction?.type ?: "expense")
+    }
+    var amountText by remember(editingTransaction?.id) {
+        mutableStateOf(editingTransaction?.let { com.smartledger.util.CurrencyUtil.toEditableString(it.amount) } ?: "0")
+    }
+    var selectedCategory by remember(editingTransaction?.id) { mutableStateOf<Category?>(null) }
+    var merchant by remember(editingTransaction?.id) { mutableStateOf(editingTransaction?.merchant ?: "") }
+    var note by remember(editingTransaction?.id) { mutableStateOf(editingTransaction?.note ?: "") }
+    var paymentMethod by remember(editingTransaction?.id) {
+        mutableStateOf(editingTransaction?.paymentMethod ?: "微信")
+    }
+    var transactionTime by remember(editingTransaction?.id) {
+        mutableLongStateOf(editingTransaction?.transactionTime ?: System.currentTimeMillis())
+    }
     var showDatePicker by remember { mutableStateOf(false) }
 
     val categories by viewModel.getCategories(transactionType)
         .collectAsState(initial = emptyList())
 
-    LaunchedEffect(transactionType) {
-        selectedCategory = null
+    LaunchedEffect(transactionType, editingTransaction?.id, categories) {
+        selectedCategory = if (
+            editingTransaction?.type == transactionType && selectedCategory == null
+        ) {
+            categories.find { it.id == editingTransaction?.categoryId }
+        } else if (selectedCategory?.type != transactionType) {
+            null
+        } else {
+            selectedCategory
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize().background(SmartLedgerColors.bg)) {
@@ -301,6 +331,7 @@ fun RecordScreen(
                         val channel = paymentMethod.trim().ifBlank { "其他" }
                         if (amount != null && amount > 0) {
                             viewModel.saveTransaction(
+                                existing = editingTransaction,
                                 amount = amount,
                                 type = transactionType,
                                 categoryId = selectedCategory?.id,
@@ -321,7 +352,7 @@ fun RecordScreen(
                     }
                 ) {
                     Text(
-                        text = "记一笔",
+                        text = if (editingTransaction == null) "记一笔" else "保存修改",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = SmartLedgerColors.accent

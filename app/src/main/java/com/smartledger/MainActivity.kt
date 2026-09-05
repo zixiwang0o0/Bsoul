@@ -22,6 +22,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 import com.smartledger.ui.home.HomeScreen
 import com.smartledger.ui.home.SearchScreen
 import com.smartledger.ui.home.SearchViewModel
@@ -285,6 +287,9 @@ fun MainApp() {
                             restoreState = true
                         }
                     },
+                    onNavigateToEditRecord = { transactionId ->
+                        navController.navigate("record/$transactionId")
+                    },
                     onNavigateToSearch = {
                         navController.navigate("search")
                     },
@@ -306,6 +311,15 @@ fun MainApp() {
                             popUpTo(Screen.Home.route) { inclusive = true }
                         }
                     }
+                )
+            }
+            composable(
+                route = "record/{transactionId}",
+                arguments = listOf(navArgument("transactionId") { type = NavType.LongType })
+            ) { entry ->
+                RecordScreen(
+                    transactionId = entry.arguments?.getLong("transactionId"),
+                    onSaved = { navController.popBackStack() }
                 )
             }
             composable(Screen.Statistics.route) {

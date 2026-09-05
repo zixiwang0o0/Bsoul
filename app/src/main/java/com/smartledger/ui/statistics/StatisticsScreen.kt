@@ -35,9 +35,9 @@ import com.smartledger.util.DateUtil
 @Composable
 fun StatisticsScreen(viewModel: StatisticsViewModel = viewModel()) {
     val selectedPeriod by viewModel.selectedPeriod.collectAsState(initial = "month")
-    val periodExpense by viewModel.periodExpense.collectAsState(initial = 0.0)
-    val periodIncome by viewModel.periodIncome.collectAsState(initial = 0.0)
-    val expenseByCategory by viewModel.expenseByCategory.collectAsState(initial = emptyList())
+    val selectedType by viewModel.selectedType.collectAsState(initial = "expense")
+    val periodTotal by viewModel.periodTotal.collectAsState(initial = 0.0)
+    val categoryTotals by viewModel.categoryTotals.collectAsState(initial = emptyList())
     val categories by viewModel.categories.collectAsState(initial = emptyList())
 
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
@@ -57,11 +57,12 @@ fun StatisticsScreen(viewModel: StatisticsViewModel = viewModel()) {
     val chartColors = SmartLedgerColors.chartColors
 
     // 周期标签映射
+    val typeLabel = if (selectedType == "income") "收入" else "支出"
     val periodLabel = when (selectedPeriod) {
-        "day" -> "今日支出"
-        "week" -> "本周支出"
-        "year" -> "本年支出"
-        else -> "本月支出"
+        "day" -> "今日$typeLabel"
+        "week" -> "本周$typeLabel"
+        "year" -> "本年$typeLabel"
+        else -> "本月$typeLabel"
     }
 
     Box(modifier = Modifier.fillMaxSize().background(SmartLedgerColors.bg)) {
@@ -90,14 +91,40 @@ fun StatisticsScreen(viewModel: StatisticsViewModel = viewModel()) {
                 }
             }
 
+            item { Spacer(modifier = Modifier.height(18.dp)) }
+
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    TypeToggleButton(
+                        text = "支出",
+                        selected = selectedType == "expense",
+                        color = SmartLedgerColors.expense,
+                        onClick = { viewModel.setType("expense") },
+                        modifier = Modifier.weight(1f)
+                    )
+                    TypeToggleButton(
+                        text = "收入",
+                        selected = selectedType == "income",
+                        color = SmartLedgerColors.income,
+                        onClick = { viewModel.setType("income") },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+
             item { Spacer(modifier = Modifier.height(32.dp)) }
 
             // ═══ 环形图 + 总支出 ═══
             item {
                 DonutChartSection(
-                    periodExpense = periodExpense,
+                    periodExpense = periodTotal,
                     periodLabel = periodLabel,
-                    expenseByCategory = expenseByCategory,
+                    expenseByCategory = categoryTotals,
                     categoryMap = categoryMap,
                     chartColors = chartColors
                 )
@@ -119,7 +146,7 @@ fun StatisticsScreen(viewModel: StatisticsViewModel = viewModel()) {
             item { Spacer(modifier = Modifier.height(16.dp)) }
 
             // ═══ 分类排行列表 ═══
-            if (expenseByCategory.isEmpty()) {
+            if (categoryTotals.isEmpty()) {
                 item {
                     Box(
                         modifier = Modifier
@@ -135,21 +162,48 @@ fun StatisticsScreen(viewModel: StatisticsViewModel = viewModel()) {
                     }
                 }
             } else {
-                items(expenseByCategory.take(8).mapIndexed { index, ct ->
+                items(categoryTotals.take(8).mapIndexed { index, ct ->
                     Triple(ct, categoryMap[ct.categoryId], index)
                 }) { (categoryTotal, category, index) ->
                     CategoryRankingItem(
                         categoryTotal = categoryTotal,
                         categoryName = category?.name ?: "未分类",
                         categoryColor = chartColors[index % chartColors.size],
-                        totalExpense = periodExpense,
-                        maxExpense = expenseByCategory.firstOrNull()?.total ?: 1.0
+                        totalExpense = periodTotal,
+                        maxExpense = categoryTotals.firstOrNull()?.total ?: 1.0
                     )
                 }
             }
 
             item { Spacer(modifier = Modifier.height(16.dp)) }
         }
+    }
+}
+
+@Composable
+private fun TypeToggleButton(
+    text: String,
+    selected: Boolean,
+    color: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick),
+        color = if (selected) color.copy(alpha = 0.16f) else SmartLedgerColors.surface,
+        shape = RoundedCornerShape(12.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            if (selected) color else SmartLedgerColors.border
+        )
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(vertical = 10.dp),
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            color = if (selected) color else SmartLedgerColors.fgSecondary
+        )
     }
 }
 

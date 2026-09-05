@@ -16,7 +16,10 @@ class RecordViewModel(application: Application) : AndroidViewModel(application) 
 
     fun getCategories(type: String): Flow<List<Category>> = categoryRepo.getByType(type)
 
+    suspend fun getTransaction(id: Long): Transaction? = transactionRepo.getById(id)
+
     fun saveTransaction(
+        existing: Transaction? = null,
         amount: Double,
         type: String,
         categoryId: Long?,
@@ -27,17 +30,32 @@ class RecordViewModel(application: Application) : AndroidViewModel(application) 
         onSuccess: () -> Unit
     ) {
         viewModelScope.launch {
-            val transaction = Transaction(
-                amount = amount,
-                type = type,
-                categoryId = categoryId,
-                merchant = merchant,
-                paymentMethod = paymentMethod,
-                note = note,
-                source = "manual",
-                transactionTime = transactionTime
-            )
-            transactionRepo.insert(transaction)
+            if (existing == null) {
+                transactionRepo.insert(
+                    Transaction(
+                        amount = amount,
+                        type = type,
+                        categoryId = categoryId,
+                        merchant = merchant,
+                        paymentMethod = paymentMethod,
+                        note = note,
+                        source = "manual",
+                        transactionTime = transactionTime
+                    )
+                )
+            } else {
+                transactionRepo.update(
+                    existing.copy(
+                        amount = amount,
+                        type = type,
+                        categoryId = categoryId,
+                        merchant = merchant,
+                        paymentMethod = paymentMethod,
+                        note = note,
+                        transactionTime = transactionTime
+                    )
+                )
+            }
             onSuccess()
         }
     }

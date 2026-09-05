@@ -38,5 +38,8 @@ class TransactionRepository(private val dao: TransactionDao) {
     fun getExpenseGroupByCategory(startTime: Long, endTime: Long): Flow<List<CategoryTotal>> =
         dao.getExpenseGroupByCategory(startTime, endTime)
 
+    fun getGroupByCategory(type: String, startTime: Long, endTime: Long): Flow<List<CategoryTotal>> =
+        dao.getGroupByCategory(type, startTime, endTime)
+
     fun search(keyword: String): Flow<List<Transaction>> = dao.search(keyword)
 }

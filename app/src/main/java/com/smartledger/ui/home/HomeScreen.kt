@@ -41,6 +41,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 @Composable
 fun HomeScreen(
     onNavigateToRecord: () -> Unit = {},
+    onNavigateToEditRecord: (Long) -> Unit = {},
     onNavigateToSearch: () -> Unit = {},
     onExport: () -> Unit = {},
     viewModel: HomeViewModel = viewModel()
@@ -79,7 +80,6 @@ fun HomeScreen(
     var showMenu by remember { mutableStateOf(false) }
     var editingTransaction by remember { mutableStateOf<Transaction?>(null) }
     var showActionMenu by remember { mutableStateOf(false) }
-    var showEditDialog by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var showCategorySelect by remember { mutableStateOf(false) }
     var showInitialBalanceDialog by remember { mutableStateOf(false) }
@@ -204,8 +204,7 @@ fun HomeScreen(
                                 showActionMenu = true
                             },
                             onClick = {
-                                editingTransaction = transaction
-                                showEditDialog = true
+                                onNavigateToEditRecord(transaction.id)
                             }
                         )
                     }
@@ -239,7 +238,10 @@ fun HomeScreen(
             content = {
                 Spacer(modifier = Modifier.height(4.dp))
                 TextButton(
-                    onClick = { showActionMenu = false; showEditDialog = true },
+                    onClick = {
+                        showActionMenu = false
+                        editingTransaction?.let { onNavigateToEditRecord(it.id) }
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(10.dp)
                 ) {
@@ -307,20 +309,6 @@ fun HomeScreen(
                 viewModel.setInitialBalance(amount)
                 showInitialBalanceDialog = false
             }
-        )
-    }
-
-    // ═══ 编辑账单弹窗 ═══
-    if (showEditDialog && editingTransaction != null) {
-        EditTransactionDialog(
-            transaction = editingTransaction!!,
-            categories = categories,
-            onSave = { updated ->
-                viewModel.updateTransaction(updated)
-                showEditDialog = false
-                editingTransaction = null
-            },
-            onDismiss = { showEditDialog = false }
         )
     }
 

@@ -51,6 +51,9 @@ interface TransactionDao {
     @Query("SELECT categoryId, SUM(amount) as total FROM transactions WHERE type = 'expense' AND transactionTime BETWEEN :startTime AND :endTime GROUP BY categoryId ORDER BY total DESC")
     fun getExpenseGroupByCategory(startTime: Long, endTime: Long): Flow<List<CategoryTotal>>
 
+    @Query("SELECT categoryId, SUM(amount) as total FROM transactions WHERE type = :type AND transactionTime BETWEEN :startTime AND :endTime GROUP BY categoryId ORDER BY total DESC")
+    fun getGroupByCategory(type: String, startTime: Long, endTime: Long): Flow<List<CategoryTotal>>
+
     @Query("SELECT * FROM transactions WHERE merchant LIKE '%' || :keyword || '%' OR note LIKE '%' || :keyword || '%' ORDER BY transactionTime DESC")
     fun search(keyword: String): Flow<List<Transaction>>
 

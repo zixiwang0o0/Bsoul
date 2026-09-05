@@ -9,6 +9,7 @@ import com.smartledger.data.db.entity.Transaction
 import com.smartledger.util.DateUtil
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 
 class StatisticsViewModel(application: Application) : AndroidViewModel(application) {
@@ -20,6 +21,9 @@ class StatisticsViewModel(application: Application) : AndroidViewModel(applicati
     private val _selectedPeriod = MutableStateFlow("month")
     val selectedPeriod: Flow<String> = _selectedPeriod
 
+    private val _selectedType = MutableStateFlow("expense")
+    val selectedType: Flow<String> = _selectedType
+
     // 根据周期计算时间范围
     private val _timeRange = MutableStateFlow(getTimeRange("month"))
 
@@ -27,6 +31,12 @@ class StatisticsViewModel(application: Application) : AndroidViewModel(applicati
     val expenseByCategory: Flow<List<CategoryTotal>> = _timeRange.flatMapLatest { (start, end) ->
         transactionRepo.getExpenseGroupByCategory(start, end)
     }
+
+    val categoryTotals: Flow<List<CategoryTotal>> =
+        combine(_timeRange, _selectedType) { range, type -> range to type }
+            .flatMapLatest { (range, type) ->
+                transactionRepo.getGroupByCategory(type, range.first, range.second)
+            }
 
     val transactions: Flow<List<Transaction>> = _timeRange.flatMapLatest { (start, end) ->
         transactionRepo.getByTimeRange(start, end)
@@ -40,11 +50,25 @@ class StatisticsViewModel(application: Application) : AndroidViewModel(applicati
         transactionRepo.getIncomeSum(start, end)
     }
 
+    val periodTotal: Flow<Double> =
+        combine(_timeRange, _selectedType) { range, type -> range to type }
+            .flatMapLatest { (range, type) ->
+                if (type == "income") {
+                    transactionRepo.getIncomeSum(range.first, range.second)
+                } else {
+                    transactionRepo.getExpenseSum(range.first, range.second)
+                }
+            }
+
     val categories: Flow<List<Category>> = categoryRepo.getAll()
 
     fun setPeriod(period: String) {
         _selectedPeriod.value = period
         _timeRange.value = getTimeRange(period)
+    }
+
+    fun setType(type: String) {
+        _selectedType.value = type
     }
 
     /** 回到前台时刷新「日/周」等相对今天的区间 */
