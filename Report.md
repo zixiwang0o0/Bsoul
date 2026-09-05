@@ -65,3 +65,14 @@ bash -c "LD_LIBRARY_PATH=/mnt/d/Android/Sdk/build-tools/34.0.0/lib64 /tmp/aapt d
 
 “验证签名有效”就是确认 APK 的数字签名没有损坏、证书可识别，且安装包未被篡改。
 
+# 我觉得可以改进的地方
+
+## 手动记账添加选择日期功能
+
+## 记账颜色
+
+现在收入使用的是绿色，支出使用的是红色，我希望把这两个的颜色对换一下
+
+## 更新
+
+当我在云端更新了我的GitHub仓库之后，怎么让手机端能够快速安装到更新的版本(instead of letting the computer send apk to the phone and install again)

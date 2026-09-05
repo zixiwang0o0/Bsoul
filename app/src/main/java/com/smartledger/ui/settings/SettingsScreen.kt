@@ -25,6 +25,8 @@ import androidx.compose.ui.unit.sp
 import com.smartledger.ui.theme.SmartLedgerColors
 import com.smartledger.ui.theme.ThemeManager
 import com.smartledger.ui.theme.ThemeMode
+import com.smartledger.util.UpdateChecker
+import java.io.File
 
 @Composable
 fun SettingsScreen(
@@ -54,6 +56,13 @@ fun SettingsScreen(
     val appVersionLabel = remember {
         context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty()
     }
+    val updateScope = rememberCoroutineScope()
+    var checkingUpdate by remember { mutableStateOf(false) }
+    var downloadingUpdate by remember { mutableStateOf(false) }
+    var downloadProgress by remember { mutableIntStateOf(0) }
+    var availableUpdate by remember { mutableStateOf<UpdateChecker.UpdateInfo?>(null) }
+    var pendingApk by remember { mutableStateOf<File?>(null) }
+    var updateMessage by remember { mutableStateOf<String?>(null) }
     Box(modifier = Modifier.fillMaxSize().background(SmartLedgerColors.bg)) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -321,6 +330,35 @@ fun SettingsScreen(
                         )
                         DividerLine()
                         MenuSettingItem(
+                            icon = Icons.Outlined.Refresh,
+                            label = when {
+                                downloadingUpdate -> "下载更新 $downloadProgress%"
+                                checkingUpdate -> "检查中…"
+                                pendingApk != null -> "继续安装更新"
+                                else -> "检查更新"
+                            },
+                            onClick = {
+                                pendingApk?.let {
+                                    if (UpdateChecker.install(context, it)) pendingApk = null
+                                    return@MenuSettingItem
+                                }
+                                if (!checkingUpdate && !downloadingUpdate) {
+                                    checkingUpdate = true
+                                    updateScope.launch {
+                                        when (val result = UpdateChecker.check(context)) {
+                                            is UpdateChecker.CheckResult.HasUpdate -> availableUpdate = result.info
+                                            is UpdateChecker.CheckResult.UpToDate ->
+                                                updateMessage = "当前已是最新版本 ${result.version}"
+                                            is UpdateChecker.CheckResult.Failed ->
+                                                updateMessage = "检查失败：${result.message}"
+                                        }
+                                        checkingUpdate = false
+                                    }
+                                }
+                            }
+                        )
+                        DividerLine()
+                        MenuSettingItem(
                             icon = Icons.Outlined.Info,
                             label = "版本号",
                             subtitle = appVersionLabel,
@@ -330,6 +368,43 @@ fun SettingsScreen(
                 }
             }
         }
+    }
+
+    availableUpdate?.let { info ->
+        AlertDialog(
+            onDismissRequest = { availableUpdate = null },
+            title = { Text("发现新版本 ${info.versionName}") },
+            text = { Text(info.releaseNotes.ifBlank { "可用更新" }) },
+            confirmButton = {
+                TextButton(onClick = {
+                    availableUpdate = null
+                    downloadingUpdate = true
+                    updateScope.launch {
+                        UpdateChecker.download(context, info) { downloadProgress = it }
+                            .onSuccess { apk ->
+                                pendingApk = apk
+                                if (UpdateChecker.install(context, apk)) pendingApk = null
+                                else updateMessage = "请允许安装未知应用，返回后点击继续安装"
+                            }
+                            .onFailure { updateMessage = "下载失败：${it.message}" }
+                        downloadingUpdate = false
+                    }
+                }) { Text("下载并安装") }
+            },
+            dismissButton = {
+                TextButton(onClick = { availableUpdate = null }) { Text("取消") }
+            }
+        )
+    }
+
+    updateMessage?.let { message ->
+        AlertDialog(
+            onDismissRequest = { updateMessage = null },
+            text = { Text(message) },
+            confirmButton = {
+                TextButton(onClick = { updateMessage = null }) { Text("好的") }
+            }
+        )
     }
 
 }

@@ -26,7 +26,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.smartledger.data.db.entity.Category
 import com.smartledger.ui.components.PaymentChannelPicker
 import com.smartledger.ui.theme.SmartLedgerColors
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RecordScreen(
     onSaved: () -> Unit = {},
@@ -38,6 +42,8 @@ fun RecordScreen(
     var merchant by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
     var paymentMethod by remember { mutableStateOf("微信") }
+    var transactionTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    var showDatePicker by remember { mutableStateOf(false) }
 
     val categories by viewModel.getCategories(transactionType)
         .collectAsState(initial = emptyList())
@@ -168,18 +174,29 @@ fun RecordScreen(
                     textStyle = MaterialTheme.typography.bodyMedium
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Icon(
-                    Icons.Outlined.Info,
-                    contentDescription = null,
-                    tint = SmartLedgerColors.fgSecondary,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = "${java.util.Calendar.getInstance().get(java.util.Calendar.MONTH) + 1}月${java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_MONTH)}日",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = SmartLedgerColors.fgSecondary
-                )
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { showDatePicker = true }
+                        .padding(horizontal = 6.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Outlined.DateRange,
+                        contentDescription = "选择日期",
+                        tint = SmartLedgerColors.fgSecondary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = remember(transactionTime) {
+                            SimpleDateFormat("M月d日", Locale.getDefault())
+                                .format(Date(transactionTime))
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = SmartLedgerColors.fgSecondary
+                    )
+                }
             }
 
             HorizontalDivider(
@@ -290,6 +307,7 @@ fun RecordScreen(
                                 merchant = merchant.ifBlank { null },
                                 paymentMethod = channel,
                                 note = note.ifBlank { null },
+                                transactionTime = transactionTime,
                                 onSuccess = {
                                     amountText = "0"
                                     selectedCategory = null
@@ -312,6 +330,32 @@ fun RecordScreen(
             }
 
             Spacer(modifier = Modifier.height(32.dp))
+        }
+    }
+
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = transactionTime
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        datePickerState.selectedDateMillis?.let { transactionTime = it }
+                        showDatePicker = false
+                    }
+                ) {
+                    Text("确定")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text("取消")
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
         }
     }
 }

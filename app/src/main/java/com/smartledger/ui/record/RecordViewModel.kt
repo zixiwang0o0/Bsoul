@@ -23,6 +23,7 @@ class RecordViewModel(application: Application) : AndroidViewModel(application) 
         merchant: String?,
         paymentMethod: String?,
         note: String?,
+        transactionTime: Long,
         onSuccess: () -> Unit
     ) {
         viewModelScope.launch {
@@ -34,7 +35,7 @@ class RecordViewModel(application: Application) : AndroidViewModel(application) 
                 paymentMethod = paymentMethod,
                 note = note,
                 source = "manual",
-                transactionTime = System.currentTimeMillis()
+                transactionTime = transactionTime
             )
             transactionRepo.insert(transaction)
             onSuccess()

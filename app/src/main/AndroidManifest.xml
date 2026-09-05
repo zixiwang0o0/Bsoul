@@ -2,9 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <uses-permission
-        android:name="android.permission.ACCESS_NETWORK_STATE"
-        tools:node="remove" />
+    <!-- 仅用于访问本项目的 GitHub Releases 并下载更新 -->
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <!-- 通知监听权限 -->
     <uses-permission android:name="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
@@ -22,6 +21,8 @@
     <uses-permission android:name="android.permission.READ_SMS" />
     <!-- 忽略电池优化引导 -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- 交由系统安装界面确认更新 -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <application
         android:name=".SmartLedgerApp"
         android:allowBackup="false"
