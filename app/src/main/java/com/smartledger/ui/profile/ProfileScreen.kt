@@ -172,7 +172,7 @@ fun ProfileScreen(
 
             // ═══ 版本号（读安装包，勿写死）═══
             val appVersionLabel = remember {
-                com.smartledger.util.UpdateChecker.currentVersionLabel(context)
+                context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty()
             }
             Text(
                 text = appVersionLabel,

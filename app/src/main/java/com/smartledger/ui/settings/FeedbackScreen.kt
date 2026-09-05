@@ -200,7 +200,7 @@ fun FeedbackScreen(
                             appendLine("设备信息：${android.os.Build.MODEL}")
                             appendLine("系统版本：Android ${android.os.Build.VERSION.RELEASE}")
                             appendLine(
-                                "App版本：${com.smartledger.util.UpdateChecker.currentVersionLabel(context)}"
+                                "App版本：${context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty()}"
                             )
                         }
                         val intent = Intent(Intent.ACTION_SENDTO).apply {

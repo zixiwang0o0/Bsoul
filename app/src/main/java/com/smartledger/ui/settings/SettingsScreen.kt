@@ -52,62 +52,8 @@ fun SettingsScreen(
 
     // 检查更新状态（版本号读安装包，勿写死）
     val appVersionLabel = remember {
-        com.smartledger.util.UpdateChecker.currentVersionLabel(context)
+        context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty()
     }
-    var isCheckingUpdate by remember { mutableStateOf(false) }
-    var updateResult by remember { mutableStateOf<com.smartledger.util.UpdateChecker.UpdateInfo?>(null) }
-    var showNoUpdate by remember { mutableStateOf(false) }
-    var noUpdateMessage by remember { mutableStateOf("") }
-    var updateError by remember { mutableStateOf<String?>(null) }
-    var isDownloadingUpdate by remember { mutableStateOf(false) }
-    var downloadProgress by remember { mutableStateOf(0) }
-    var pendingInstallFile by remember { mutableStateOf<java.io.File?>(null) }
-    val coroutineScope = rememberCoroutineScope()
-    fun startApkDownload(info: com.smartledger.util.UpdateChecker.UpdateInfo) {
-        updateError = null
-        isDownloadingUpdate = true
-        downloadProgress =
-            com.smartledger.util.UpdateChecker.partialDownloadPercent(context, info)
-        coroutineScope.launch {
-            when (val result =
-                com.smartledger.util.UpdateChecker.downloadApk(context, info) { p ->
-                    downloadProgress = p
-                }
-            ) {
-                is com.smartledger.util.UpdateChecker.DownloadResult.Success -> {
-                    isDownloadingUpdate = false
-                    updateResult = null
-                    val ok = com.smartledger.util.UpdateChecker.installApk(
-                        context, result.apkFile
-                    )
-                    if (!ok) {
-                        pendingInstallFile = result.apkFile
-                        Toast.makeText(
-                            context,
-                            "请允许安装未知应用后点「继续安装」",
-                            Toast.LENGTH_LONG
-                        ).show()
-                    } else {
-                        Toast.makeText(
-                            context,
-                            "请按提示完成安装",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                }
-                is com.smartledger.util.UpdateChecker.DownloadResult.NeedBrowser -> {
-                    isDownloadingUpdate = false
-                    com.smartledger.util.UpdateChecker.openDownloadPage(context, info)
-                    updateResult = null
-                }
-                is com.smartledger.util.UpdateChecker.DownloadResult.Failed -> {
-                    isDownloadingUpdate = false
-                    updateError = result.message
-                }
-            }
-        }
-    }
-
     Box(modifier = Modifier.fillMaxSize().background(SmartLedgerColors.bg)) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -375,35 +321,6 @@ fun SettingsScreen(
                         )
                         DividerLine()
                         MenuSettingItem(
-                            icon = Icons.Outlined.Refresh,
-                            label = "检查更新",
-                            subtitle = if (isCheckingUpdate) "检查中..." else null,
-                            onClick = {
-                                if (!isCheckingUpdate) {
-                                    isCheckingUpdate = true
-                                    coroutineScope.launch {
-                                        when (val result =
-                                            com.smartledger.util.UpdateChecker.checkUpdate(context)
-                                        ) {
-                                            is com.smartledger.util.UpdateChecker.CheckResult.HasUpdate -> {
-                                                updateResult = result.info
-                                            }
-                                            is com.smartledger.util.UpdateChecker.CheckResult.UpToDate -> {
-                                                noUpdateMessage =
-                                                    "当前版本 ${result.currentVersion} 已是最新（线上 ${result.latestTag}），无需更新。"
-                                                showNoUpdate = true
-                                            }
-                                            is com.smartledger.util.UpdateChecker.CheckResult.Failed -> {
-                                                updateError = result.message
-                                            }
-                                        }
-                                        isCheckingUpdate = false
-                                    }
-                                }
-                            }
-                        )
-                        DividerLine()
-                        MenuSettingItem(
                             icon = Icons.Outlined.Info,
                             label = "版本号",
                             subtitle = appVersionLabel,
@@ -415,115 +332,6 @@ fun SettingsScreen(
         }
     }
 
-    // ═══ 检查更新结果弹窗 ═══
-    updateResult?.let { info ->
-        if (!isDownloadingUpdate && updateError == null) {
-            com.smartledger.ui.components.SmartLedgerDialog(
-                onDismissRequest = { updateResult = null },
-                iconTint = SmartLedgerColors.accent,
-                title = "发现新版本 ${info.versionName}",
-                text = if (info.releaseNotes.isNotBlank()) {
-                    val notes = info.releaseNotes.take(500)
-                    if (info.releaseNotes.length > 500) "$notes\n..." else notes
-                } else "有新版本可用，建议更新。",
-                confirmText = if (info.apkUrl.isNullOrBlank()) "前往下载页" else "应用内下载",
-                onConfirm = {
-                    if (info.apkUrl.isNullOrBlank()) {
-                        com.smartledger.util.UpdateChecker.openDownloadPage(context, info)
-                        updateResult = null
-                    } else {
-                        startApkDownload(info)
-                    }
-                },
-                dismissText = "稍后再说",
-                onDismiss = { updateResult = null }
-            )
-        }
-    }
-
-    // ═══ 下载进度 ═══
-    if (isDownloadingUpdate) {
-        com.smartledger.ui.components.SmartLedgerDialog(
-            onDismissRequest = { },
-            iconTint = SmartLedgerColors.accent,
-            title = "正在下载更新",
-            text = "已下载 $downloadProgress%，请保持网络畅通…",
-            confirmText = null,
-            dismissText = "",
-            content = {
-                LinearProgressIndicator(
-                    progress = downloadProgress / 100f,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(6.dp),
-                    color = SmartLedgerColors.accent,
-                    trackColor = SmartLedgerColors.border
-                )
-            }
-        )
-    }
-
-    // 授权安装未知应用后可继续
-    pendingInstallFile?.let { apk ->
-        com.smartledger.ui.components.SmartLedgerDialog(
-            onDismissRequest = { pendingInstallFile = null },
-            iconTint = SmartLedgerColors.accent,
-            title = "安装更新",
-            text = "安装包已下载完成。若已允许安装未知应用，请点击继续安装。",
-            confirmText = "继续安装",
-            onConfirm = {
-                val ok = com.smartledger.util.UpdateChecker.installApk(context, apk)
-                if (ok) {
-                    pendingInstallFile = null
-                    Toast.makeText(context, "请按提示完成安装", Toast.LENGTH_SHORT).show()
-                } else {
-                    updateError = "仍未获得安装权限，请在系统设置中允许本应用安装未知应用。"
-                }
-            },
-            dismissText = "取消",
-            onDismiss = { pendingInstallFile = null }
-        )
-    }
-
-    if (showNoUpdate) {
-        com.smartledger.ui.components.SmartLedgerDialog(
-            onDismissRequest = { showNoUpdate = false },
-            iconTint = SmartLedgerColors.income,
-            title = "已是最新版本",
-            text = noUpdateMessage.ifBlank {
-                "当前版本 $appVersionLabel 已是最新，无需更新。"
-            },
-            confirmText = "好的",
-            onConfirm = { showNoUpdate = false }
-        )
-    }
-
-    updateError?.let { msg ->
-        val retryInfo = updateResult?.takeIf { !it.apkUrl.isNullOrBlank() }
-        val cachedPct = retryInfo?.let {
-            com.smartledger.util.UpdateChecker.partialDownloadPercent(context, it)
-        } ?: 0
-        com.smartledger.ui.components.SmartLedgerDialog(
-            onDismissRequest = { updateError = null },
-            iconTint = SmartLedgerColors.expense,
-            title = if (retryInfo != null) "下载失败" else "检查更新失败",
-            text = if (retryInfo != null && cachedPct > 0) {
-                "$msg\n\n已下载 ${cachedPct}%，重新下载将从断点继续。"
-            } else {
-                msg
-            },
-            confirmText = if (retryInfo != null) "重新下载" else "好的",
-            onConfirm = {
-                if (retryInfo != null) {
-                    startApkDownload(retryInfo)
-                } else {
-                    updateError = null
-                }
-            },
-            dismissText = if (retryInfo != null) "取消" else "",
-            onDismiss = { updateError = null }
-        )
-    }
 }
 
 @Composable
