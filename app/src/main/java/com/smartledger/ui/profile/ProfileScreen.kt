@@ -18,11 +18,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.smartledger.data.db.AppDatabase
 import com.smartledger.ui.components.SmartLedgerInputDialog
 import com.smartledger.ui.theme.SmartLedgerColors
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import java.time.Instant
+import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 
 @Composable
 fun ProfileScreen(
@@ -39,23 +39,15 @@ fun ProfileScreen(
     var nickname by remember { mutableStateOf(prefs.getString("nickname", "记账用户") ?: "记账用户") }
     var showEditName by remember { mutableStateOf(false) }
 
-    // 陪伴天数
-    var daysSinceFirst by remember { mutableStateOf(1) }
-    LaunchedEffect(Unit) {
-        daysSinceFirst = withContext(Dispatchers.IO) {
-            try {
-                val db = AppDatabase.getInstance(context)
-                val firstTime = db.transactionDao().getFirstTransactionTime()
-                if (firstTime != null && firstTime > 0) {
-                    val diff = System.currentTimeMillis() - firstTime
-                    maxOf(1, (diff / (1000 * 60 * 60 * 24)).toInt())
-                } else {
-                    1
-                }
-            } catch (e: Exception) {
-                1
-            }
-        }
+    // 陪伴天数按首次安装日计算，不受补录/修改账单日期影响。
+    val daysSinceFirst = remember {
+        val firstInstallTime = context.packageManager
+            .getPackageInfo(context.packageName, 0)
+            .firstInstallTime
+        val zone = ZoneId.systemDefault()
+        val firstDay = Instant.ofEpochMilli(firstInstallTime).atZone(zone).toLocalDate()
+        val today = Instant.ofEpochMilli(System.currentTimeMillis()).atZone(zone).toLocalDate()
+        (ChronoUnit.DAYS.between(firstDay, today) + 1).toInt().coerceAtLeast(1)
     }
 
     Box(modifier = Modifier.fillMaxSize().background(SmartLedgerColors.bg)) {
