@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.smartledger.data.db.dao.BudgetDao
 import com.smartledger.data.db.dao.CategoryDao
@@ -18,7 +19,7 @@ import kotlinx.coroutines.launch
 
 @Database(
     entities = [Transaction::class, Category::class, Budget::class, CategoryBudget::class],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -28,6 +29,18 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun budgetDao(): BudgetDao
 
     companion object {
+        private val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """INSERT INTO categories (name, icon, color, type, sortOrder, isDefault)
+                       SELECT '退款', 'Replay', 0xFF78909C, 'income', 5, 1
+                       WHERE NOT EXISTS (
+                           SELECT 1 FROM categories WHERE name = '退款' AND type = 'income'
+                       )""".trimIndent()
+                )
+            }
+        }
+
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
@@ -38,6 +51,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "smart_ledger.db"
                 )
+                    .addMigrations(MIGRATION_1_2)
                     .addCallback(DatabaseCallback())
                     .build()
                 INSTANCE = instance
@@ -75,6 +89,7 @@ abstract class AppDatabase : RoomDatabase() {
                 Category(name = "红包", icon = "CardGiftcard", color = 0xFFF44336, type = "income", sortOrder = 2, isDefault = true),
                 Category(name = "转账", icon = "SwapHoriz", color = 0xFF2196F3, type = "income", sortOrder = 3, isDefault = true),
                 Category(name = "其他", icon = "MoreHoriz", color = 0xFF607D8B, type = "income", sortOrder = 4, isDefault = true),
+                Category(name = "退款", icon = "Replay", color = 0xFF78909C, type = "income", sortOrder = 5, isDefault = true),
             )
             categoryDao.insertAll(defaultCategories)
         }

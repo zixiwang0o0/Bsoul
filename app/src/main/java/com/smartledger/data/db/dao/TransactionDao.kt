@@ -37,6 +37,14 @@ interface TransactionDao {
     @Query("SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE type = 'income' AND transactionTime BETWEEN :startTime AND :endTime")
     fun getIncomeSum(startTime: Long, endTime: Long): Flow<Double>
 
+    @Query("""SELECT COALESCE(SUM(t.amount), 0)
+        FROM transactions t
+        LEFT JOIN categories c ON t.categoryId = c.id
+        WHERE t.type = 'income'
+          AND t.transactionTime BETWEEN :startTime AND :endTime
+          AND (c.name IS NULL OR c.name != '退款')""")
+    fun getStatisticalIncomeSum(startTime: Long, endTime: Long): Flow<Double>
+
     /** 全部支出合计（不限月份） */
     @Query("SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE type = 'expense'")
     fun getTotalExpenseSum(): Flow<Double>
@@ -51,7 +59,14 @@ interface TransactionDao {
     @Query("SELECT categoryId, SUM(amount) as total FROM transactions WHERE type = 'expense' AND transactionTime BETWEEN :startTime AND :endTime GROUP BY categoryId ORDER BY total DESC")
     fun getExpenseGroupByCategory(startTime: Long, endTime: Long): Flow<List<CategoryTotal>>
 
-    @Query("SELECT categoryId, SUM(amount) as total FROM transactions WHERE type = :type AND transactionTime BETWEEN :startTime AND :endTime GROUP BY categoryId ORDER BY total DESC")
+    @Query("""SELECT t.categoryId, SUM(t.amount) as total
+        FROM transactions t
+        LEFT JOIN categories c ON t.categoryId = c.id
+        WHERE t.type = :type
+          AND t.transactionTime BETWEEN :startTime AND :endTime
+          AND (:type != 'income' OR c.name IS NULL OR c.name != '退款')
+        GROUP BY t.categoryId
+        ORDER BY total DESC""")
     fun getGroupByCategory(type: String, startTime: Long, endTime: Long): Flow<List<CategoryTotal>>
 
     @Query("SELECT * FROM transactions WHERE merchant LIKE '%' || :keyword || '%' OR note LIKE '%' || :keyword || '%' ORDER BY transactionTime DESC")

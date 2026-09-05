@@ -423,6 +423,7 @@ private fun getCategoryIcon(name: String): ImageVector {
         "理财" -> Icons.Outlined.TrendingUp
         "红包" -> Icons.Outlined.CardGiftcard
         "转账" -> Icons.Outlined.SwapHoriz
+        "退款" -> Icons.Outlined.Replay
         else -> Icons.Outlined.MoreHoriz
     }
 }

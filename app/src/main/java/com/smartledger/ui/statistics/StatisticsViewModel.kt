@@ -47,14 +47,14 @@ class StatisticsViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     val periodIncome: Flow<Double> = _timeRange.flatMapLatest { (start, end) ->
-        transactionRepo.getIncomeSum(start, end)
+        transactionRepo.getStatisticalIncomeSum(start, end)
     }
 
     val periodTotal: Flow<Double> =
         combine(_timeRange, _selectedType) { range, type -> range to type }
             .flatMapLatest { (range, type) ->
                 if (type == "income") {
-                    transactionRepo.getIncomeSum(range.first, range.second)
+                    transactionRepo.getStatisticalIncomeSum(range.first, range.second)
                 } else {
                     transactionRepo.getExpenseSum(range.first, range.second)
                 }
