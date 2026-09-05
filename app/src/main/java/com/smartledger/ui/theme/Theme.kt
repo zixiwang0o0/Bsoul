@@ -39,10 +39,10 @@ val AccentDim = Color(0x1F6C63FF)
 val DarkAccentDim = Color(0x336C63FF)
 
 // 收支配色
-val ExpenseRed = Color(0xFFD94848)
-val ExpenseRedDim = Color(0x1AD94848)
-val IncomeGreen = Color(0xFF2D9D63)
-val IncomeGreenDim = Color(0x1A2D9D63)
+val ExpenseGreen = Color(0xFF2D9D63)
+val ExpenseGreenDim = Color(0x1A2D9D63)
+val IncomeRed = Color(0xFFD94848)
+val IncomeRedDim = Color(0x1AD94848)
 
 // 图表色
 val ChartGray1 = Color(0xFF94A3B8)
@@ -71,10 +71,10 @@ val DarkNavSelected = DarkForeground
 
 @Immutable
 data class ExtendedColors(
-    val expense: Color = ExpenseRed,
-    val expenseDim: Color = ExpenseRedDim,
-    val income: Color = IncomeGreen,
-    val incomeDim: Color = IncomeGreenDim,
+    val expense: Color = ExpenseGreen,
+    val expenseDim: Color = ExpenseGreenDim,
+    val income: Color = IncomeRed,
+    val incomeDim: Color = IncomeRedDim,
     val accent: Color = Accent,
     val accentDim: Color = AccentDim,
     val background: Color = Background,
@@ -105,7 +105,7 @@ private val LightColorScheme = lightColorScheme(
     onSecondary = Color.White,
     secondaryContainer = SurfaceHover,
     onSecondaryContainer = Foreground,
-    tertiary = IncomeGreen,
+    tertiary = IncomeRed,
     onTertiary = Color.White,
     background = Background,
     onBackground = Foreground,
@@ -126,7 +126,7 @@ private val DarkColorScheme = darkColorScheme(
     onSecondary = Color.White,
     secondaryContainer = DarkSurfaceHover,
     onSecondaryContainer = DarkForeground,
-    tertiary = IncomeGreen,
+    tertiary = IncomeRed,
     onTertiary = Color.White,
     background = DarkBackground,
     onBackground = DarkForeground,

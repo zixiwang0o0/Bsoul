@@ -868,7 +868,7 @@ private fun CategoryEditDialog(
     )
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 private fun EditTransactionDialog(
     transaction: Transaction,
@@ -886,6 +886,8 @@ private fun EditTransactionDialog(
         )
     }
     var selectedCategoryId by remember { mutableStateOf(transaction.categoryId) }
+    var transactionTime by remember { mutableLongStateOf(transaction.transactionTime) }
+    var showDatePicker by remember { mutableStateOf(false) }
     val typeCategories = remember(categories, transaction.type) {
         categories.filter { it.type == transaction.type }
     }
@@ -936,6 +938,15 @@ private fun EditTransactionDialog(
                         cursorColor = SmartLedgerColors.accent
                     )
                 )
+                OutlinedButton(
+                    onClick = { showDatePicker = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Outlined.DateRange, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("账单日期：${DateUtil.formatDate(transactionTime)}")
+                }
                 // 渠道
                 PaymentChannelPicker(
                     selected = paymentMethod,
@@ -974,7 +985,8 @@ private fun EditTransactionDialog(
                                 merchant = merchant.ifBlank { null },
                                 note = note.ifBlank { null },
                                 paymentMethod = paymentMethod.trim().ifBlank { "其他" },
-                                categoryId = selectedCategoryId
+                                categoryId = selectedCategoryId,
+                                transactionTime = transactionTime
                             )
                         )
                     }
@@ -987,4 +999,38 @@ private fun EditTransactionDialog(
             TextButton(onClick = onDismiss) { Text("取消", color = SmartLedgerColors.fgSecondary) }
         }
     )
+
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = transactionTime
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let {
+                        transactionTime = replaceTransactionDate(transactionTime, it)
+                    }
+                    showDatePicker = false
+                }) { Text("确定") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) { Text("取消") }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
+}
+
+private fun replaceTransactionDate(originalMillis: Long, selectedUtcMillis: Long): Long {
+    val selected = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC")).apply {
+        timeInMillis = selectedUtcMillis
+    }
+    return java.util.Calendar.getInstance().apply {
+        timeInMillis = originalMillis
+        set(java.util.Calendar.YEAR, selected.get(java.util.Calendar.YEAR))
+        set(java.util.Calendar.MONTH, selected.get(java.util.Calendar.MONTH))
+        set(java.util.Calendar.DAY_OF_MONTH, selected.get(java.util.Calendar.DAY_OF_MONTH))
+    }.timeInMillis
 }

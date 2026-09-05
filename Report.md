@@ -67,12 +67,10 @@ bash -c "LD_LIBRARY_PATH=/mnt/d/Android/Sdk/build-tools/34.0.0/lib64 /tmp/aapt d
 
 # 我觉得可以改进的地方
 
-## 手动记账添加选择日期功能
-
 ## 记账颜色
 
 现在收入使用的是绿色，支出使用的是红色，我希望把这两个的颜色对换一下
 
-## 更新
+## 账单生成后编辑日期
 
-当我在云端更新了我的GitHub仓库之后，怎么让手机端能够快速安装到更新的版本(instead of letting the computer send apk to the phone and install again)
+目前只有在手动记账创建的时候可以编辑日期，创建之后无法修改。我希望能让账单在被创建之后仍然可以修改日期。
