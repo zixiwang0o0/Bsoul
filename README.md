@@ -1,11 +1,13 @@
-# SmartLedger 智能记账
+# Bsoul 智能记账
 
-[![Latest Release](https://img.shields.io/github/v/release/huanghhcri/SmartLedger?label=release)](https://github.com/huanghhcri/SmartLedger/releases/latest)
+[![Latest Release](https://img.shields.io/github/v/release/zixiwang0o0/Bsoul?label=release)](https://github.com/zixiwang0o0/Bsoul/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Android%208.0%2B-green.svg)](https://github.com/huanghhcri/SmartLedger)
+[![Platform](https://img.shields.io/badge/platform-Android%208.0%2B-green.svg)](https://github.com/zixiwang0o0/Bsoul)
 
 一款 Android 本地智能记账应用：监听支付类通知自动入账，也支持手动记账、预算、统计与数据备份。  
-当前版本：**v1.0.24**
+当前版本：**v1.0.35**
+
+> 本项目 Fork 自 [huanghhcri/SmartLedger](https://github.com/huanghhcri/SmartLedger)，由 Zixi Wang 继续维护和扩展。
 
 ## ✨ 功能特点
 
@@ -22,12 +24,13 @@
 ### ✍️ 手动记账
 - 支出 / 收入切换、数字键盘、分类网格
 - **渠道可选**：微信、支付宝、云闪付、现金、银行卡、抖音、京东，或自定义
-- 编辑账单时可改金额、商户、备注、**渠道**与分类
+- 新建与编辑复用同一记账页，可修改金额、日期、商户、备注、渠道与分类
 
 ### 📊 首页与统计
 - **总余额**：期初 + 全部收入 − 全部支出，可点按设置期初
 - 今日支出、本月收支；支持切换历史月份
-- 日 / 周 / 月 / 年统计、分类占比、排行与趋势
+- 日 / 周 / 月 / 年收支统计、分类占比与排行
+- 收入分类支持“退款”；收入统计排除退款，首页结余仍计入
 - 搜索：按关键词、收支类型、渠道、分类筛选
 
 ### 💰 预算管理
@@ -40,8 +43,7 @@
 - 设置内反馈建议入口
 
 ### 🔄 更新与数据
-- **应用内检查更新**：启动自动检测 + 设置页手动检测
-- **断点续传**：更新包下载失败可从上次进度继续
+- **应用内更新**：在设置页检查本仓库 GitHub Release，下载后由系统确认安装
 - CSV 导出；本地备份 / 恢复（含重装后发现历史备份）
 - 分类管理（增删改）
 
@@ -59,17 +61,17 @@
 
 ### 方式一：下载 APK（推荐）
 
-1. 打开 [Releases](https://github.com/huanghhcri/SmartLedger/releases/latest)
+1. 打开 [Releases](https://github.com/zixiwang0o0/Bsoul/releases/latest)
 2. 下载最新 `*.apk`（需挂在对应 Release 附件中）
 3. 手机安装时允许「安装未知应用」
 
-已安装旧版时，也可在 App 内「检查更新」或等待启动自动提示后应用内下载安装。
+已安装旧版时，也可在 App 的「设置 → 检查更新」中下载安装。
 
 ### 方式二：自行编译
 
 ```bash
-git clone https://github.com/huanghhcri/SmartLedger.git
-cd SmartLedger
+git clone https://github.com/zixiwang0o0/Bsoul.git
+cd Bsoul
 ```
 
 用 Android Studio 打开工程，连接真机或模拟器后 Run。  
@@ -134,7 +136,7 @@ Release 签名从 `local.properties` 读取（勿提交密钥到仓库）。
 | 数据库 | Room（SQLite） |
 | 架构 | MVVM + Repository |
 | 异步 | Coroutines + Flow |
-| 更新 | GitHub Releases API + 应用内下载（HTTP Range 续传） |
+| 更新 | GitHub Releases API + 应用内下载 |
 
 ## ⚠️ 已知问题与建议
 
@@ -155,12 +157,11 @@ Release 签名从 `local.properties` 读取（勿提交密钥到仓库）。
 
 ## 📝 近期更新（摘要）
 
-详见 [Releases](https://github.com/huanghhcri/SmartLedger/releases)。
+详见 [Releases](https://github.com/zixiwang0o0/Bsoul/releases)。
 
-- **v1.0.24**：启动自动检查更新；下载断点续传；手动记账 / 编辑可选渠道  
-- **v1.0.21**：修复聚合通知漏记（微信付款码及全渠道）  
-- **v1.0.20**：首页总余额与期初设置  
-- **v1.0.18～19**：模糊账单确认、银行截断金额、监听假断开修复  
+- **v1.0.35**：新增退款分类，收入统计排除退款
+- **v1.0.34**：统计页支持收入 / 支出切换
+- **v1.0.33**：新建与编辑账单复用同一页面
 
 ## 🤝 贡献
 
@@ -180,10 +181,11 @@ Release 签名从 `local.properties` 读取（勿提交密钥到仓库）。
 
 ## 🙏 致谢
 
+- [huanghhcri/SmartLedger](https://github.com/huanghhcri/SmartLedger) 原始项目及贡献者
 - [Jetpack Compose](https://developer.android.com/jetpack/compose)
 - [Material 3](https://m3.material.io/)
 - [Room](https://developer.android.com/training/data-storage/room)
 
 ---
 
-有问题或建议欢迎 [提交 Issue](https://github.com/huanghhcri/SmartLedger/issues)。
+有问题或建议欢迎 [提交 Issue](https://github.com/zixiwang0o0/Bsoul/issues)。
